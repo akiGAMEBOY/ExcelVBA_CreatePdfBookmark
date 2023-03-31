@@ -1,0 +1,692 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet3"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+' 共通変数
+'   しおりデータ
+Public dicBookmarkdata As New Dictionary
+'   デバッグ用
+Public DEBUGMODE As Boolean
+'********************************************************************************
+'* 処理名　｜btnBrowse_Click
+'* 機能　　｜対象ファイル参照ボタン
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜-
+'* 引数　　｜-
+'********************************************************************************
+Private Sub btnBrowse_Click()
+On Error Resume Next
+
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.MAIN_PARA)
+    
+    Dim strMainsheet As String
+    Dim strRange As String
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        strMainsheet = .Range(arySetupinfo(0)).Value
+        strRange = .Range(arySetupinfo(4)).Value
+    End With
+
+    Dim strPath As String
+    Dim lngPos As Long
+    
+    strPath = Application.GetOpenFilename(FileFilter:=mdlCommon.PDF_FILETYPE, _
+                                          FilterIndex:=2)
+    
+    If strPath = "False" Then
+        Exit Sub
+    End If
+    
+    Worksheets(strMainsheet).Range(strRange).Value = strPath
+    lngPos = InStrRev(strPath, "\")
+    strPath = Left(strPath, lngPos)
+    ChDrive strPath
+    ChDir strPath
+
+End Sub
+'********************************************************************************
+'* 処理名　｜btnExe_Click
+'* 機能　　｜実行ボタン
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜-
+'* 引数　　｜-
+'********************************************************************************
+Private Sub btnExe_Click()
+Application.EnableCancelKey = xlErrorHandler
+On Error GoTo ERROR_LABEL
+
+    Dim lngResult As Long
+    Dim dblStarttime As Double
+    Dim dblEndtime As Double
+    Dim dblProcesstime As Double
+    Dim dblProcesstime_m As Double
+    Dim dblProcesstime_s As Double
+    
+    Sheet3.DEBUGMODE = False
+    lngResult = 0
+
+    If Sheet3.DEBUGMODE Then
+        dblStarttime = Timer
+    End If
+    
+    Call mdlCommon.SubOnSpeedup(True)
+    Call mdlCommon.SubDisplayStatusbar(True)
+    Call mdlCommon.SubDisplayMessage(999)
+
+    Dim arySetinfo() As String
+    Dim strMainsheet As String
+
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        arySetinfo = mdlCommon.FuncReadSetinfo(mdlCommon.MAIN_PARA)
+        strMainsheet = .Range(arySetinfo(0)).Value
+    End With
+    
+    ' メイン処理
+    If lngResult = 0 Then
+        lngResult = FuncCreatePdfBookmark()
+    End If
+    
+    ' 事後処理
+    If Sheet3.DEBUGMODE Then
+        dblEndtime = Timer
+        dblProcesstime = dblEndtime - dblStarttime
+        dblProcesstime_m = WorksheetFunction.RoundDown((dblProcesstime / 60), 0)
+        dblProcesstime_s = dblProcesstime - (dblProcesstime_m * 60)
+        Debug.Print "処理時間：" & dblProcesstime_m & "分 " & Round(dblProcesstime_s, 2) & "秒"
+    End If
+
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+        If lngResult = 0 Then
+        Call mdlCommon.SubDisplayMessage(lngResult)
+        Call mdlCommon.SubSelectCell(strMainsheet, "A1")
+    Else
+        Call mdlCommon.SubDisplayMessage(lngResult)
+        Call mdlCommon.SubWriteError(lngResult)
+        Call mdlCommon.SubShowMessagebox(lngResult)
+    End If
+    
+    Exit Sub
+    
+ERROR_LABEL:
+    ' 例外エラー
+    lngResult = -999
+    Select Case Err.Number
+        Case 18
+            lngResult = -901
+            If Not (mdlCommon.FuncShowBreakmessage) Then
+                lngResult = 0
+                Resume
+            End If
+    End Select
+
+    Call mdlCommon.SubVisibleSheet("HIDDEN", False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    Call mdlCommon.SubWriteError(lngResult)
+    Call mdlCommon.SubShowMessagebox(lngResult)
+    
+    Exit Sub
+End Sub
+'********************************************************************************
+'* 処理名　｜FuncCreatePdfBookmark
+'* 機能　　｜メイン処理
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜-
+'* 引数　　｜-
+'********************************************************************************
+Function FuncCreatePdfBookmark() As Long
+Application.EnableCancelKey = xlErrorHandler
+On Error GoTo ERROR_LABEL
+
+    Dim lngResult As Long
+    lngResult = 0
+    
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.MAIN_PARA)
+    
+    Dim strSheetnameFm As String
+    Dim strRange As String
+    Dim strValue As String
+    Dim strPath As String
+    
+    ' 入力チェック処理
+    If lngResult = 0 Then
+        ' PDFファイル参照先
+        With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+            strSheetnameFm = .Range(arySetupinfo(0)).Value
+            strRange = .Range(arySetupinfo(4)).Value
+        End With
+        With Worksheets(strSheetnameFm)
+            strValue = .Range(strRange).Value
+        End With
+        strPath = strValue
+        
+        ' 対象PDFファイル 入力チェック
+        If mdlCommon.IsEmptyText(strPath) Then
+            lngResult = -111
+            Call mdlCommon.SubSelectCell(strSheetnameFm, strRange)
+        End If
+        ' 対象PDFファイル 存在チェック
+        If Not (mdlCommon.IsExistsFile(strPath)) Then
+            lngResult = -211
+            Call mdlCommon.SubSelectCell(strSheetnameFm, strRange)
+        End If
+    End If
+    
+    ' 判定（しおり読み込み / しおり書き込み）
+    If lngResult = 0 Then
+        With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+            strSheetnameFm = .Range(arySetupinfo(0)).Value
+            strRange = .Range(arySetupinfo(2)).Value
+        End With
+        With Worksheets(strSheetnameFm)
+            strValue = .Range(strRange).Value
+        End With
+        If strValue = "True" Then
+            lngResult = FuncReadBookmark(strPath)
+        Else
+            lngResult = FuncWriteBookmark(strPath)
+        End If
+    End If
+    
+    ' 事後処理
+    FuncMain = lngResult
+    Exit Function
+    
+ERROR_LABEL:
+    ' 例外エラー
+    lngResult = -999
+    Select Case Err.Number
+        Case 18
+            lngResult = -901
+            If Not (mdlCommon.FuncShowBreakmessage) Then
+                lngResult = 0
+                Resume
+            End If
+    End Select
+
+    Call mdlCommon.SubVisibleSheet("HIDDEN", False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    Call mdlCommon.SubWriteError(lngResult)
+    Call mdlCommon.SubShowMessagebox(lngResult)
+    
+    Exit Function
+    
+End Function
+'********************************************************************************
+'* 処理名　｜FuncReadBookmark
+'* 機能　　｜しおり読み込み処理
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜Long（0：正常終了, -311：データ0件）
+'* 引数　　｜-
+'********************************************************************************
+Function FuncReadBookmark(strFilepath As String) As Long
+Application.EnableCancelKey = xlErrorHandler
+On Error GoTo ERROR_LABEL
+    
+    Dim lngResult As Long
+    lngResult = 0
+    
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.OUTPUT_PARA)
+    
+    Dim strSheetname As String
+    Dim strSheetname02 As String
+    Dim strRange As String
+    Dim aryRange() As String
+    Dim strCellrange As String
+    Dim varRange As Variant
+    Dim lngCount As Long
+    
+    Set Sheet3.dicBookmarkdata = New Scripting.Dictionary
+    
+    ' 出力情報シートの初期化
+    ReDim aryRange(2)
+    aryRange(0) = arySetupinfo(2)
+    aryRange(1) = ":"
+    aryRange(2) = arySetupinfo(12)
+    strCellrange = Join(aryRange, "")
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        strSheetname = .Range(arySetupinfo(0)).Value
+        varRange = .Range(strCellrange).Value
+        strRange = .Range(arySetupinfo(1)).Value
+    End With
+    Call mdlCommon.SubClearSheet(strSheetname, CStr(varRange(1, 1)))
+    
+    ' 読み込み対象のファイル名を反映
+    With Worksheets(strSheetname)
+        .Range(strRange).Value = strFilepath
+    End With
+    
+    ' しおり読み込み
+    lngCount = mdlAcrobat.FuncReadBookmark_Acrobat(strFilepath)
+    
+    ' データ件数のチェック
+    If lngCount > 0 Then
+        ' データありの場合、Excel書き込み
+        lngResult = 0
+        Call SubWriteExcelsheet
+    Else
+        ' データなしの場合
+        lngResult = -311
+    End If
+
+    ' 処理結果表示
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    
+    ' 事後処理
+    Set Sheet3.dicBookmarkdata = Nothing
+    FuncReadBookmark = lngResult
+    
+    Exit Function
+    
+ERROR_LABEL:
+    ' 例外エラー
+    lngResult = -999
+    Select Case Err.Number
+        Case 18
+            lngResult = -901
+            If Not (mdlCommon.FuncShowBreakmessage) Then
+                lngResult = 0
+                Resume
+            End If
+    End Select
+
+    Call mdlCommon.SubVisibleSheet("HIDDEN", False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    Call mdlCommon.SubWriteError(lngResult)
+    Call mdlCommon.SubShowMessagebox(lngResult)
+    
+    Exit Function
+    
+End Function
+'********************************************************************************
+'* 処理名　｜SubTempsaveBookmark
+'* 機能　　｜しおりデータ一時保存
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜-
+'* 引数　　｜strMidashi：見出し、lngPage：ページ番号、lngCol：階層
+'********************************************************************************
+Sub SubTempsaveBookmark(strMidashi As String, lngPage As Long, lngCol As Long)
+    Dim clsTempsaveBookmark As clsBookmarkdata
+    Set clsTempsaveBookmark = New clsBookmarkdata
+    
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.OUTPUT_PARA)
+    Dim strSheetname As String
+    Dim strCellrange As String
+    Dim aryRange() As String
+    Dim varRange As Variant
+    Dim varDirectory As Variant
+    
+    Dim varRowdata As Variant
+    Dim lngCount As Long
+    
+    ReDim aryRange(3)
+    aryRange(0) = arySetupinfo(2)
+    aryRange(1) = ":"
+    aryRange(2) = arySetupinfo(12)
+    strCellrange = Join(aryRange, "")
+    
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        strSheetname = .Range(arySetupinfo(0)).Value
+        varRange = .Range(strCellrange).Value
+    End With
+    
+    ReDim varDirectory(UBound(varRange) - 2)
+    For lngCount = 0 To UBound(varRange)
+        If lngCol = lngCount Then
+            varDirectory(lngCount) = strMidashi
+        End If
+    Next
+
+    With clsTempsaveBookmark
+        .lngPage = lngPage
+        .strDirectory00 = varDirectory(0)
+        .strDirectory01 = varDirectory(1)
+        .strDirectory02 = varDirectory(2)
+        .strDirectory03 = varDirectory(3)
+        .strDirectory04 = varDirectory(4)
+        .strDirectory05 = varDirectory(5)
+        .strDirectory06 = varDirectory(6)
+        .strDirectory07 = varDirectory(7)
+        .strDirectory08 = varDirectory(8)
+        .strDirectory09 = varDirectory(9)
+    End With
+    
+    Sheet3.dicBookmarkdata.Add Sheet3.dicBookmarkdata.Count, clsTempsaveBookmark
+    
+    Set clsTempsaveBookmark = Nothing
+    
+End Sub
+'********************************************************************************
+'* 処理名　｜SubWriteExcelsheet
+'* 機能　　｜しおりデータの出力
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜-
+'* 引数　　｜-
+'********************************************************************************
+Sub SubWriteExcelsheet()
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.OUTPUT_PARA)
+    
+    Dim strSheetname As String
+    Dim strCellrange As String
+    Dim aryRange() As String
+    Dim varRange As Variant
+    Dim lngMaxrow As Long
+    Dim lngMaxcol As Long
+    Dim lngStartrow As Long
+    Dim lngStartcol As Long
+    Dim lngRow As Long
+    Dim lngCol As Long
+    Dim lngCount As Long
+    Dim varBookmarkdata As Variant
+    
+    ReDim aryRange(3)
+    aryRange(0) = arySetupinfo(2)
+    aryRange(1) = ":"
+    aryRange(2) = arySetupinfo(12)
+    strCellrange = Join(aryRange, "")
+    
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        strSheetname = .Range(arySetupinfo(0)).Value
+        varRange = .Range(strCellrange).Value
+    End With
+    
+    If mdlCommon.IsExistsSheet(strSheetname) Then
+        With ThisWorkbook.Worksheets(strSheetname)
+            lngStartrow = Range(varRange(1, 1)).Row
+            lngStartcol = Range(varRange(1, 1)).Column
+            lngMaxrow = .Cells(Rows.Count, lngStartcol).End(xlUp).Row
+            lngMaxcol = .Cells(lngStartrow - 1, Columns.Count).End(xlToLeft).Column
+            
+            If lngStartrow > lngMaxrow Then
+                lngMaxrow = lngStartrow
+            End If
+            
+            ReDim varBookmarkdata(Sheet3.dicBookmarkdata.Count - 1, lngMaxcol - lngStartcol)
+            For lngCount = 0 To Sheet3.dicBookmarkdata.Count - 1
+                varBookmarkdata(lngCount, 0) = Sheet3.dicBookmarkdata.item(lngCount).lngPage
+                varBookmarkdata(lngCount, 1) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory00
+                varBookmarkdata(lngCount, 2) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory01
+                varBookmarkdata(lngCount, 3) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory02
+                varBookmarkdata(lngCount, 4) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory03
+                varBookmarkdata(lngCount, 5) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory04
+                varBookmarkdata(lngCount, 6) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory05
+                varBookmarkdata(lngCount, 7) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory06
+                varBookmarkdata(lngCount, 8) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory07
+                varBookmarkdata(lngCount, 9) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory08
+                varBookmarkdata(lngCount, 10) = Sheet3.dicBookmarkdata.item(lngCount).strDirectory09
+            Next
+            
+            lngMaxrow = UBound(varBookmarkdata, 1) + lngStartrow
+            .Range(.Cells(lngStartrow, lngStartcol), .Cells(lngMaxrow, lngMaxcol)).Value = varBookmarkdata
+            
+        End With
+    End If
+    
+End Sub
+'********************************************************************************
+'* 処理名　｜FuncWriteBookmark
+'* 機能　　｜しおり書き込み処理
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜Long 下記の通り。
+'* 　　　　｜   0：正常終了
+'* 　　　　｜-112：数値チェック
+'* 　　　　｜-113：二重登録あり
+'* 　　　　｜-114：矛盾あり（1行目が0階層以外で設定）
+'* 　　　　｜-115：前後の階層関係に誤り
+'* 　　　　｜-411：しおり初期化失敗
+'* 引数　　｜-
+'********************************************************************************
+Function FuncWriteBookmark(strFilepath As String) As Long
+Application.EnableCancelKey = xlErrorHandler
+On Error GoTo ERROR_LABEL
+    
+    Dim lngResult As Long
+    lngResult = 0
+    
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.INPUT_PARA)
+    
+    Dim strSheetname As String
+    Dim strRange As String
+    Dim aryRange() As String
+    Dim strCellrange As String
+    Dim varRange As Variant
+    Dim lngStartrow As Long
+    Dim lngStartcol As Long
+    
+    Set Sheet3.dicBookmarkdata = New Scripting.Dictionary
+    
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        strSheetname = .Range(arySetupinfo(0)).Value
+        strRange = .Range(arySetupinfo(1)).Value
+    End With
+    
+    ' 書き込み対象のファイル名を反映
+    With Worksheets(strSheetname)
+        .Range(strRange).Value = strFilepath
+    End With
+    
+    ' しおり初期化
+    lngResult = mdlAcrobat.FuncInitBookmark(strFilepath)
+    
+    ' Excel読み込み
+    If lngResult = 0 Then
+        lngResult = FuncReadExcelsheet()
+    End If
+    
+    ' しおり書き込み
+    If lngResult = 0 Then
+        lngResult = mdlAcrobat.FuncWriteBookmark_Acrobat(strFilepath)
+    End If
+
+    ' 処理結果表示
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    
+    ' 事後処理
+    Set Sheet3.dicBookmarkdata = Nothing
+    FuncWriteBookmark = lngResult
+    Exit Function
+    
+ERROR_LABEL:
+    ' 例外エラー
+    lngResult = -999
+    Select Case Err.Number
+        Case 18
+            lngResult = -901
+            If Not (mdlCommon.FuncShowBreakmessage) Then
+                lngResult = 0
+                Resume
+            End If
+    End Select
+
+    Call mdlCommon.SubVisibleSheet("HIDDEN", False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    Call mdlCommon.SubWriteError(lngResult)
+    Call mdlCommon.SubShowMessagebox(lngResult)
+    
+    Set Sheet3.dicBookmarkdata = Nothing
+    FuncWriteBookmark = lngResult
+    Exit Function
+    
+End Function
+'********************************************************************************
+'* 処理名　｜FuncReadExcelsheet
+'* 機能　　｜Excelシート（入力情報）読み込み
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜Long 下記の通り。
+'* 　　　　｜0：正常終了
+'* 　　　　｜-112：数値チェック
+'* 　　　　｜-113：二重登録あり
+'* 　　　　｜-114：矛盾あり（1行目が0階層以外で設定）
+'* 　　　　｜-115：前後の階層関係に誤り
+'* 引数　　｜-
+'********************************************************************************
+Function FuncReadExcelsheet() As Long
+Application.EnableCancelKey = xlErrorHandler
+On Error GoTo ERROR_LABEL
+    
+    Dim lngResult As Long
+    lngResult = 0
+    
+    Dim arySetupinfo() As String
+    arySetupinfo = mdlCommon.FuncReadSetinfo(mdlCommon.INPUT_PARA)
+    
+    Dim strSheetname As String
+    Dim strCellrange As String
+    Dim aryRange() As String
+    Dim varRange As Variant
+    Dim lngMaxrow As Long
+    Dim lngMaxcol As Long
+    Dim lngStartrow As Long
+    Dim lngStartcol As Long
+    Dim lngRow As Long
+    Dim lngCol As Long
+    Dim lngCount As Long
+    Dim varBookmarkdata As Variant
+    Dim varRowdata As Variant
+    Dim aryDirectory() As String
+    
+    ReDim aryRange(3)
+    aryRange(0) = arySetupinfo(2)
+    aryRange(1) = ":"
+    aryRange(2) = arySetupinfo(12)
+    strCellrange = Join(aryRange, "")
+    
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        strSheetname = .Range(arySetupinfo(0)).Value
+        varRange = .Range(strCellrange).Value
+    End With
+    
+    If mdlCommon.IsExistsSheet(strSheetname) Then
+        With ThisWorkbook.Worksheets(strSheetname)
+            lngStartrow = Range(varRange(1, 1)).Row
+            lngStartcol = Range(varRange(1, 1)).Column
+            lngMaxrow = .Cells(Rows.Count, lngStartcol).End(xlUp).Row
+            lngMaxcol = .Cells(lngStartrow - 1, Columns.Count).End(xlToLeft).Column
+            
+            If lngStartrow > lngMaxrow Then
+                lngMaxrow = lngStartrow
+            End If
+            
+            varBookmarkdata = .Range(.Cells(lngStartrow, lngStartcol), .Cells(lngMaxrow, lngMaxcol)).Value
+            
+            ' 数値チェック
+            For lngRow = 1 To UBound(varBookmarkdata)
+                If Not mdlCommon.IsNumericEx(CStr(varBookmarkdata(lngRow, 1))) Then
+                    lngResult = -112
+                    Exit For
+                End If
+            Next
+            
+            ' 入力チェック
+            If lngResult = 0 Then
+                ReDim aryDirectory(1 To UBound(varBookmarkdata))
+                For lngRow = 1 To UBound(varBookmarkdata)
+                    ' 1行でひとつも階層の入力がない場合
+                    lngResult = -111
+                    For lngCol = 2 To UBound(varBookmarkdata, 2)
+                        ' 値ありの場合
+                        If Not (mdlCommon.IsEmptyText(CStr(varBookmarkdata(lngRow, lngCol)))) Then
+                            ' 二重入力（1行内に複数階層の入力あり）
+                            If lngResult = 0 Then
+                                lngResult = -113
+                                Exit For
+                            Else
+                                ' 1行で最初の階層入力
+                                lngResult = 0
+                                aryDirectory(lngRow) = lngCol - 2 ' 階層
+                                
+                                ' 階層関係をチェック
+                                '   1行目が0階層で設定されていない場合
+                                If lngRow = 1 Then
+                                    If aryDirectory(lngRow) <> 0 Then
+                                        lngResult = -114
+                                        Exit For
+                                    End If
+                                Else
+                                    ' 下記以外の場合
+                                    '   ・前行の階層 = 現在の階層       ：階層が同一
+                                    '   ・前行の階層 = 現在の階層 - 1   ：階層をあげる場合は1階層ずつ
+                                    '   ・前行の階層 > 現在の階層       ：階層をさげる場合は複数階層さげてもよい
+                                    If Not((aryDirectory(lngRow - 1) = aryDirectory(lngRow)) Or _
+                                           (aryDirectory(lngRow - 1) = (aryDirectory(lngRow) - 1)) Or _
+                                           (aryDirectory(lngRow - 1) > (aryDirectory(lngRow)))) Then
+                                            lngResult = -115
+                                            Exit For
+                                    End If
+                                End If
+                            End If
+                        End If
+                    Next
+                    ' 1行内でエラーがあった場合、中断
+                    If lngResult <> 0 Then
+                        Exit For
+                    End If
+                Next
+            End If
+            
+            ' しおりデータ保存
+            If lngResult = 0 Then
+                If UBound(varBookmarkdata) = 1 Then
+                    ' 1行の場合
+                    varRowdata = WorksheetFunction.Index(varBookmarkdata, 0)
+                    Sheet3.dicBookmarkdata.Add Sheet3.dicBookmarkdata.Count, varRowdata
+                Else
+                    ' 複数行の場合
+                    For lngCount = 1 To UBound(varBookmarkdata)
+                        varRowdata = WorksheetFunction.Index(varBookmarkdata, lngCount)
+                        Sheet3.dicBookmarkdata.Add Sheet3.dicBookmarkdata.Count, varRowdata
+                    Next
+                End If
+            End If
+            
+        End With
+    End If
+    
+    FuncReadExcelsheet = lngResult
+    Exit Function
+    
+ERROR_LABEL:
+    ' 例外エラー
+    lngResult = -999
+    Select Case Err.Number
+        Case 18
+            lngResult = -901
+            If Not (mdlCommon.FuncShowBreakmessage) Then
+                lngResult = 0
+                Resume
+            End If
+    End Select
+
+    Call mdlCommon.SubVisibleSheet("HIDDEN", False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    Call mdlCommon.SubWriteError(lngResult)
+    Call mdlCommon.SubShowMessagebox(lngResult)
+    
+    Exit Function
+    
+End Function

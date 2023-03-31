@@ -1,0 +1,161 @@
+VERSION 1.0 CLASS
+BEGIN
+    MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet1"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+'********************************************************************************
+'* 処理名　｜btnInit_Click
+'* 機能　　｜初期化ボタン
+'*-------------------------------------------------------------------------------
+'* 戻り値　｜-
+'* 引数　　｜-
+'********************************************************************************
+Private Sub btnInit_Click()
+Application.EnableCancelKey = xlErrorHandler
+On Error GoTo ERROR_LABEL
+    Dim lngResult As Long
+    lngResult = 0
+
+    Call mdlCommon.SubOnSpeedup(True)
+    Call mdlCommon.SubDisplayStatusbar(True)
+    Call mdlCommon.SubVisibleSheet(mdlCommon.HIDDEN_PARA, True)
+    Call mdlCommon.SubDisplayMessage(999)
+
+    Dim arySetinfodata() As String
+    Dim lngCount As Long
+
+  ' メイン
+    Dim strMainsheet As String
+    Dim aryMainrange() As String
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        arySetinfodata = mdlCommon.FuncReadSetinfo(mdlCommon.MAIN_PARA)
+        strMainsheet = .Range(arySetinfodata(0)).Value
+        ReDim aryMainrange(1)
+        aryMainrange(0) = .Range(arySetinfodata(1)).Value
+        aryMainrange(1) = .Range(arySetinfodata(4)).Value
+    End With
+
+    With Worksheets(strMainsheet)
+        ' 入力欄
+        For lngCount = 0 To UBound(aryMainrange)
+            .Range(aryMainrange(lngCount)).Value = ""
+        Next
+        ' ラジオボタン
+        .optRead.Value = True
+    End With
+    
+    ' エラー情報
+    Dim strErrorsheet As String
+    Dim strErrorrange As String
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        arySetinfodata = mdlCommon.FuncReadSetinfo(mdlCommon.ERROR_PARA)
+        strErrorsheet = .Range(arySetinfodata(0)).Value
+        strErrorrange = .Range(arySetinfodata(1)).Value
+    End With
+
+    Call mdlCommon.SubClearSheet(strErrorsheet, strErrorrange)
+    
+    ' 入力情報
+    Dim aryInputsheet() As String
+    Dim aryInputrange() As String
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        arySetinfodata = mdlCommon.FuncReadSetinfo(mdlCommon.INPUT_PARA)
+        If Not (mdlCommon.IsEmptyText(.Range(arySetinfodata(0)).Value)) Then
+            ' 複数入力シートがある場合
+            ' aryInputsheet = Split(.Range(arySetinfodata(0)).Value, ",")
+            ReDim aryInputsheet(0)
+            aryInputsheet(0) = .Range(arySetinfodata(0)).Value
+        End If
+        ReDim aryInputrange(1)
+        aryInputrange(0) = .Range(arySetinfodata(1)).Value
+        aryInputrange(1) = .Range(arySetinfodata(2)).Value
+    End With
+
+    For lngCount = 0 To UBound(aryInputsheet)
+        ' 対象ファイル
+        Worksheets(aryInputsheet(lngCount)).Range(aryInputrange(0)).Value = ""
+        ' 表クリア
+        Call mdlCommon.SubClearSheet(aryInputsheet(lngCount), aryInputrange(1))
+    Next
+    
+    ' 出力情報
+    Dim aryOutputsheet() As String
+    Dim aryOutputrange() As String
+    With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+        arySetinfodata = mdlCommon.FuncReadSetinfo(mdlCommon.OUTPUT_PARA)
+        If Not (mdlCommon.IsEmptyText(.Range(arySetinfodata(0)).Value)) Then
+            aryOutputsheet = Split(.Range(arySetinfodata(0)).Value, ",")
+            ' 複数入力シートがある場合
+            ' aryOutputsheet = Split(.Range(arySetinfodata(0)).Value, ",")
+            ReDim aryOutputsheet(0)
+            aryOutputsheet(0) = .Range(arySetinfodata(0)).Value
+        End If
+        ReDim aryOutputrange(1)
+        aryOutputrange(0) = .Range(arySetinfodata(1)).Value
+        aryOutputrange(1) = .Range(arySetinfodata(2)).Value
+    End With
+
+    For lngCount = 0 To UBound(aryOutputsheet)
+        ' 対象ファイル
+        Worksheets(aryOutputsheet(lngCount)).Range(aryOutputrange(0)).Value = ""
+        ' 表クリア
+        Call mdlCommon.SubClearSheet(aryOutputsheet(lngCount), aryOutputrange(1))
+    Next
+    
+    ' ' マスター
+    ' Dim strMastersheet As String
+    ' Dim strMasterrange As String
+    ' With Worksheets(mdlCommon.SETINFO_SHEETNAME)
+    '     arySetinfodata = mdlCommon.FuncReadSetinfo(mdlCommon.MASTER_PARA)
+    '     strMastersheet = .Range(arySetinfodata(0)).Value
+    '     strMasterrange = .Range(arySetinfodata(1)).Value
+    ' End With
+
+    ' Call mdlCommon.SubClearSheet(strMastersheet, strMasterrange)
+
+  ' 事後処理
+    Worksheets(strMainsheet).Select
+
+    Call mdlCommon.SubVisibleSheet(mdlCommon.HIDDEN_PARA, False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+    If lngResult = 0 Then
+            Call mdlCommon.SubDisplayMessage(lngResult)
+            Call mdlCommon.SubSelectCell(strMainsheet, "A1")
+    Else
+            Call mdlCommon.SubDisplayMessage(lngResult)
+            Call mdlCommon.SubWriteError(lngResult)
+            Call mdlCommon.SubShowMessagebox(lngResult)
+    End If
+
+    Exit Sub
+    
+ERROR_LABEL:
+  ' 例外エラー
+    lngResult = -999
+    Select Case Err.Number
+            Case 18
+                    lngResult = -901
+                    If Not (mdlCommon.FuncShowBreakmessage) Then
+              lngResult = 0
+              Resume
+                    End If
+    End Select
+
+    Call mdlCommon.SubVisibleSheet("HIDDEN", False)
+    Call mdlCommon.SubDisplayStatusbar(False)
+    Call mdlCommon.SubOnSpeedup(False)
+
+    Call mdlCommon.SubDisplayMessage(lngResult)
+    Call mdlCommon.SubWriteError(lngResult)
+    Call mdlCommon.SubShowMessagebox(lngResult)
+  
+    Exit Sub
+
+End Sub
