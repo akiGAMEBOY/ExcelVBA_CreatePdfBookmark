@@ -269,7 +269,7 @@ On Error GoTo ERROR_LABEL
         .Range(strRange).Value = strFilepath
     End With
     
-    ' しおり読み込み
+    ' しおりデータ読み込み
     lngCount = mdlAcrobat.FuncReadBookmark_Acrobat(strFilepath)
     
     ' データ件数のチェック
@@ -484,15 +484,15 @@ On Error GoTo ERROR_LABEL
         .Range(strRange).Value = strFilepath
     End With
     
-    ' しおりデータの初期化
+    ' しおりデータの初期化（すべて削除）
     lngResult = mdlAcrobat.FuncInitBookmark(strFilepath)
     
-    ' Excelシート（入力情報）読み込み
+    ' Excelシート（入力情報）読み込み・入力チェック
     If lngResult = 0 Then
         lngResult = FuncReadExcelsheet()
     End If
     
-    ' しおり書き込み
+    ' PDFファイルにしおりデータ書き込み
     If lngResult = 0 Then
         lngResult = mdlAcrobat.FuncWriteBookmark_Acrobat(strFilepath)
     End If
@@ -532,7 +532,7 @@ ERROR_LABEL:
 End Function
 '********************************************************************************
 '* 処理名　｜FuncReadExcelsheet
-'* 機能　　｜Excelシート（入力情報）読み込み
+'* 機能　　｜Excelシート（入力情報）読み込み・入力チェック
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜Long 下記の通り。
 '* 　　　　｜0：正常終了

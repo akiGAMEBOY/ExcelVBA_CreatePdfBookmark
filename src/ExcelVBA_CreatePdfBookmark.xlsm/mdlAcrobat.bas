@@ -8,7 +8,7 @@ Private Const PDSaveCollectGarbage = &H20
 Private Declare Sub Sleep Lib "kernel32" (ByVal ms As Long)
 '********************************************************************************
 '* 処理名　｜FuncReadBookmark_Acrobat
-'* 機能　　｜しおり読み込み
+'* 機能　　｜しおりデータ読み込み
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜Long（データ件数）
 '* 引数　　｜strFilepath：対象ファイル
@@ -59,7 +59,7 @@ Public Function FuncReadBookmark_Acrobat(strFilepath As String) As Long
 End Function
 '********************************************************************************
 '* 処理名　｜SubDumpBookmark
-'* 機能　　｜しおり読み込み(サブ)
+'* 機能　　｜しおりデータ読み込み(サブ)
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜-
 '* 引数　　｜objBkmk：bookmarkRootオブジェクト, objPageview：AcroAVPageViewオブジェクト, lngCol：階層カウント(任意)
@@ -88,7 +88,7 @@ Private Sub SubDumpBookmark(ByVal objBkmk As Object, ByVal objPageview As Object
 End Sub
 '********************************************************************************
 '* 処理名　｜FuncInitBookmark
-'* 機能　　｜Acrobatのしおりデータの初期化（すべて削除）
+'* 機能　　｜しおりデータの初期化（すべて削除）
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜Long（0: 正常終了, -411: 異常終了）
 '* 引数　　｜strFilepath：対象ファイル
@@ -145,7 +145,7 @@ Public Function FuncInitBookmark(strFilepath As String)
 End Function
 '********************************************************************************
 '* 処理名　｜FuncWriteBookmark_Acrobat
-'* 機能　　｜Acrobatのしおり書き込み
+'* 機能　　｜PDFファイルにしおりデータ書き込み
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜Long（0: 正常終了, -511: 異常終了）
 '* 引数　　｜strFilepath：対象ファイル
