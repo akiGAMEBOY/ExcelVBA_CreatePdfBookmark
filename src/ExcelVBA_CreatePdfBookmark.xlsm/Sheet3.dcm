@@ -274,7 +274,7 @@ On Error GoTo ERROR_LABEL
     
     ' データ件数のチェック
     If lngCount > 0 Then
-        ' データありの場合、Excel書き込み
+        ' データありの場合、しおりデータをExcelシートに出力
         lngResult = 0
         Call SubWriteExcelsheet
     Else
@@ -375,7 +375,7 @@ Sub SubTempsaveBookmark(strMidashi As String, lngPage As Long, lngCol As Long)
 End Sub
 '********************************************************************************
 '* 処理名　｜SubWriteExcelsheet
-'* 機能　　｜しおりデータの出力
+'* 機能　　｜Excelシートにしおりデータ出力
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜-
 '* 引数　　｜-
@@ -484,10 +484,10 @@ On Error GoTo ERROR_LABEL
         .Range(strRange).Value = strFilepath
     End With
     
-    ' しおり初期化
+    ' しおりデータの初期化
     lngResult = mdlAcrobat.FuncInitBookmark(strFilepath)
     
-    ' Excel読み込み
+    ' Excelシート（入力情報）読み込み
     If lngResult = 0 Then
         lngResult = FuncReadExcelsheet()
     End If

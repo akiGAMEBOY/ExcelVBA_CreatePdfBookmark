@@ -88,7 +88,7 @@ Private Sub SubDumpBookmark(ByVal objBkmk As Object, ByVal objPageview As Object
 End Sub
 '********************************************************************************
 '* 処理名　｜FuncInitBookmark
-'* 機能　　｜Acrobatのしおりデータ初期化（すべて削除）
+'* 機能　　｜Acrobatのしおりデータの初期化（すべて削除）
 '*-------------------------------------------------------------------------------
 '* 戻り値　｜Long（0: 正常終了, -411: 異常終了）
 '* 引数　　｜strFilepath：対象ファイル
