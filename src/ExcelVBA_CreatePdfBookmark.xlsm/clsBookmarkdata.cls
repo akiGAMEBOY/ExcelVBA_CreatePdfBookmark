@@ -11,13 +11,13 @@ Option Explicit
 
 ' しおりデータ一時保存用
 Public lngPage As Long
-Public strDIrectory00 As String
-Public strDIrectory01 As String
-Public strDIrectory02 As String
-Public strDIrectory03 As String
-Public strDIrectory04 As String
-Public strDIrectory05 As String
-Public strDIrectory06 As String
-Public strDIrectory07 As String
-Public strDIrectory08 As String
-Public strDIrectory09 As String
+Public strDirectory00 As String
+Public strDirectory01 As String
+Public strDirectory02 As String
+Public strDirectory03 As String
+Public strDirectory04 As String
+Public strDirectory05 As String
+Public strDirectory06 As String
+Public strDirectory07 As String
+Public strDirectory08 As String
+Public strDirectory09 As String
