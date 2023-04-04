@@ -61,7 +61,7 @@ On Error GoTo ERROR_LABEL
 
     Call mdlCommon.SubClearSheet(strErrorsheet, strErrorrange)
     
-    ' 入力情報
+    ' 入力データ
     Dim aryInputsheet() As String
     Dim aryInputrange() As String
     With Worksheets(mdlCommon.SETINFO_SHEETNAME)
@@ -84,7 +84,7 @@ On Error GoTo ERROR_LABEL
         Call mdlCommon.SubClearSheet(aryInputsheet(lngCount), aryInputrange(1))
     Next
     
-    ' 出力情報
+    ' 出力データ
     Dim aryOutputsheet() As String
     Dim aryOutputrange() As String
     With Worksheets(mdlCommon.SETINFO_SHEETNAME)
